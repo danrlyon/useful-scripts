@@ -1,0 +1,154 @@
+#!/bin/bash
+#####################################################
+# Author: Dan Allen	
+# Purpose:
+# 	Automated configuration of Rails application and 
+#	app server.
+# 
+# Notes:
+#	To run "rorinit" as root
+#	!!!!UNDER CONSTRUCTION!!!!
+######################################################
+
+
+# variables
+logfile='/var/log/script/rorinit.log'
+logfilePath='/var/log/script/'
+stars='***********************'
+
+date
+printf "\n%s\n" "$stars" "Initializing RoR Server" "$stars"
+
+# set up logfile
+mkdir -p logfilePath
+touch logfile
+
+# output changes to logfile on console
+# and store tail PID to kill later
+tail -f logfile &
+tailPID=$!
+
+# log output of script
+exec >> logfile
+exec 2>&1
+
+# update package manager
+printf "%s" "$stars" "Updating and Installing" "$stars"
+yum update -y 
+
+# install gcc
+yum install -y gcc gcc-c++
+
+# install git
+yum install -y git
+
+# install ruby dependencies
+yum install -y gcc g++ make automake autoconf curl-devel openssl-devel zlib-devel httpd-devel apr-devel apr-util-devel
+yum install -y readline-devel
+yum install -y ruby-rdoc ruby-devel
+
+
+##TODO!!!! install rbenv for appuser
+# Install rbenv
+git clone https://github.com/rbenv/rbenv.git ~/.rbenv
+cd ~/.rbenv && src/configure && make -C src
+echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.bash_profile
+echo 'eval "$(rbenv init -)"' >> ~/.bash_profile
+#source ~/.bash_profile
+
+# !TODO restart shellexit
+
+# optional, install ruby-build
+git clone https://github.com/rbenv/ruby-build.git ~/.rbenv/plugins/ruby-build
+
+# install ruby
+printf "/n%s/n" "$stars" "Installing and setting Ruby" "$stars"
+rbenv install -vf 2.4.1
+
+# set ruby version for all shells
+rbenv global 2.4.1
+rbenv local 2.4.1
+rbenv rehash
+ruby -v
+
+# install ruby gems and add check to log
+gem install bundler
+gem env home
+
+# install rails
+echo|gem update
+echo|gem update --system
+echo|gem install rails -V
+
+# !TODO SSL certificate for Apache
+
+# Optional: use capistrano to automate deployment tasks
+
+# Install passenger
+## Instal EPEL
+yum install -y epel-release yum-utils
+yum-config-manager --enable epel
+yum clean all && yum update -y
+## Install Passenger packages
+### Install various prerequisites
+yum install -y pygpgme curl
+#date
+### if the output of date is wrong, please follow these instructions to install ntp
+#yum install -y ntp
+#chkconfig ntpd on
+#ntpdate pool.ntp.org
+#service ntpd start
+### Add our el7 YUM repository
+curl --fail -sSLo /etc/yum.repos.d/passenger.repo https://oss-binaries.phusionpassenger.com/yum/definitions/el-passenger.repo
+#### Install Passenger + Apache module
+yum install -y mod_passenger || sudo yum-config-manager --enable cr && yum install -y mod_passenger
+
+# install nodejs
+yum install -y nodejs npm
+
+#### restart apache
+systemctl restart httpd
+
+# Check installation
+/usr/bin/passenger-config validate-install
+/usr/sbin/passermnger-memory-stats
+
+
+########
+# App server is now ready, next we need to set up appuser, 
+# clone the repo, and configure apache 
+
+
+# Make a directory to store the app's code
+mkdir -p /var/www/sohapp
+chown sohappuser: /var/www/sohapp
+
+# Clone repo
+# TODO configure to pull from my repo once tested
+cd /var/www/myapp
+sudo -u myappuser -H git clone --branch=end_result https://github.com/phusion/passenger-ruby-rails-demo.git code
+
+# Everything below msut be run as the application's use account
+sudo -u sohappuser -H bash -l
+# Install app dependencies
+cd /var/www/sohapp/code
+bundle install --deployment --without development test
+
+# Add SOH app user and make sure that SSH keys installed
+adduser sohappuser
+mkdir -p ~sohappuser/.ssh
+touch $HOME/.ssh/authorized_keys
+sh -c "cat $HOME/.ssh/authorized_keys >> ~sohappuser/.ssh/authorized_keys"
+chown -R sohappuser: ~sohappuser/.ssh
+chmod 700 ~sohappuser/.ssh
+sh -c "chmod 600 ~sohappuser/.ssh/*"
+su sohappuser -
+
+
+
+
+
+
+# End processes
+kill $tailPID
+
