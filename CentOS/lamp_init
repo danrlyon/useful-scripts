@@ -44,9 +44,49 @@ mysql_secure_installation
 #start on boot
 systemctl enable mariadb.service
 
+
 # install php
 yum -y install php php-mysql
 ## TODO: may need to add some php modules
 
 # install git
 yum -y install git
+
+# clone repo
+cd /var/www/
+git clone https://github.com/danrlyon/soh-app.git
+
+#Change /etc/httpd/conf/httpd.conf/htt
+# ^Keep as default to make it simple
+
+# Moving the mySQL Data directory
+# NOT WORKING!!
+#systemctl stop mariadb
+#systemctl status mariadb
+#rsync -av /var/lib/mysql /var/www/html/db
+#cp -a /var/lib/mysql /var/lib/mysqlBak
+# Pointing to the new data location
+# must already have git repo pulled since my.cnf is stored there
+#unalias cp
+#cp -afv /var/www/html/db/dbconf/my.cnf /etc/my.cnf
+#cp -afrv /var/www/html/db/dbconf/my.cnf.d /etc
+
+# Install PHP package manager PEAR
+yum install wget
+wget http://pear.php.net/go-pear.phar
+# Install ssh2
+yum install gcc php-devel php-pear libssh2 libssh2-devel make
+pecl install -f ssh2
+echo extension=ssh2.so > /etc/php.d/ssh2.ini
+service httpd restart
+php -m | grep ssh2
+
+
+
+
+
+
+
+
+
+
