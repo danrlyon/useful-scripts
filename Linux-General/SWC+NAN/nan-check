@@ -1,14 +1,13 @@
 #!/bin/sh
 
-# HEAL
 # Parse NAN from July, 2017
 
 # List EEPROM IDs to check
-SWC1=42344
-SWC2=42345
-SWC3=42346
-SWC4=42347
-SWC5=42348
+SWC1=54321
+SWC2=54321
+SWC3=54321
+SWC4=54321
+SWC5=54321
 DATAPATH=/opt/neon/data/sockets_201707
 RESULTSPATH=/opt/neon/bin/Test/SWC+NAN/results/July2017_
 
